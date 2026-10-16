@@ -197,7 +197,7 @@ class Overlay:
           text=label,
           fg=self.text_color,
           bg=self.background_color,
-          font=(FONT, self.text_size + 2 if is_current else self.text_size, "bold" if is_current else "normal"),
+          font=(FONT, self.text_size + 8 if is_current else self.text_size, "bold" if is_current else "normal"),
           anchor="w",
           justify="left",
       )
