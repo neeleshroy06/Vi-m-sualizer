@@ -1,0 +1,129 @@
+import os
+import sys
+import tempfile
+import time
+import tkinter as tk
+
+# Must match g:vs_file in vimshow.vim.  VIMSHOW_FILE is useful for custom
+# locations (for example, a shared mount).
+FILE = os.environ.get("VIMSHOW_FILE")
+if not FILE:
+  FILE = (
+      os.path.join(tempfile.gettempdir(), "vim_cmd.txt")
+      if sys.platform == "win32"
+      else "/tmp/vim_cmd.txt"
+  )
+FONT = {"win32": "Consolas", "darwin": "Menlo"}.get(sys.platform, "DejaVu Sans Mono")
+POLL_MS = 40
+HISTORY = 3             # number of commands shown
+REPEAT_WINDOW = 2.0     # seconds: same command within this window -> "xN"
+BG, FG, DIM = "#1e1e1e", "#4ec9b0", "#7a8a88"
+BAR_BG = "#2a2a2a"
+
+
+class Overlay:
+
+  def __init__(self):
+    self.root = tk.Tk()
+    self.root.overrideredirect(True)
+    self.root.attributes("-topmost", True)
+    self.root.configure(bg=BG)
+    self.root.geometry("+100+100")
+
+    # header: drag handle + close button
+    self.bar = tk.Frame(self.root, bg=BAR_BG)
+    self.bar.pack(fill="x")
+    self.title = tk.Label(
+        self.bar, text="Vim Visualizer", fg=DIM, bg=BAR_BG,
+        font=(FONT, 9), padx=8,
+    )
+    self.title.pack(side="left")
+    self.close_btn = tk.Label(
+        self.bar, text="\u2715", fg="#cccccc", bg=BAR_BG, padx=10,
+        font=(FONT, 10, "bold"), cursor="hand2",
+    )
+    self.close_btn.bind("<Button-1>", lambda e: self.close())
+    self.close_btn.bind("<Enter>", lambda e: self.close_btn.config(bg="#c42b1c", fg="white"))
+    self.close_btn.bind("<Leave>", lambda e: self.close_btn.config(bg=BAR_BG, fg="#cccccc"))
+    self.close_btn.pack(side="right")
+
+    # commands area
+    self.frame = tk.Frame(self.root, bg=BG, padx=15, pady=10)
+    self.frame.pack(fill="both")
+
+    self.history = []  # each item: [text, count, last_time]
+    self.last_id = self.read()[0]  # ignore stale content at startup
+    self.render([("Vim Visualizer Ready", 1)])
+
+    # drag from anywhere except the close button
+    for w in (self.root, self.bar, self.title, self.frame):
+      w.bind("<Button-1>", self.start_move)
+      w.bind("<B1-Motion>", self.do_move)
+    self.root.protocol("WM_DELETE_WINDOW", self.close)
+
+    self.poll()
+    self.root.mainloop()
+
+  def close(self):
+    try:
+      os.remove(FILE)
+    except OSError:
+      pass
+    self.root.destroy()
+
+  def start_move(self, e):
+    self.dx = e.x_root - self.root.winfo_x()
+    self.dy = e.y_root - self.root.winfo_y()
+
+  def do_move(self, e):
+    self.root.geometry(f"+{e.x_root - self.dx}+{e.y_root - self.dy}")
+
+  def read(self):
+    try:
+      with open(FILE, "r", encoding="utf-8") as f:
+        line = f.read().strip()
+      cmd_id, text = line.split("|", 1)
+      return cmd_id, text
+    except Exception:
+      return None, None
+
+  def render(self, items):
+    for w in self.frame.winfo_children():
+      w.destroy()
+    # newest on top, big; older ones below, dim
+    for i, (text, count) in enumerate(reversed(items)):
+      label = text + (f"  x{count}" if count > 1 else "")
+      lbl = tk.Label(
+          self.frame,
+          text=label,
+          fg=FG if i == 0 else DIM,
+          bg=BG,
+          font=(FONT, 16 if i == 0 else 12, "bold" if i == 0 else "normal"),
+          anchor="w",
+          justify="left",
+      )
+      lbl.pack(anchor="w")
+      lbl.bind("<Button-1>", self.start_move)
+      lbl.bind("<B1-Motion>", self.do_move)
+
+  def poll(self):
+    cmd_id, text = self.read()
+    if cmd_id and cmd_id != self.last_id:
+      self.last_id = cmd_id
+      now = time.time()
+      if (
+          self.history
+          and self.history[-1][0] == text
+          and now - self.history[-1][2] < REPEAT_WINDOW
+      ):
+        self.history[-1][1] += 1
+        self.history[-1][2] = now
+      else:
+        self.history.append([text, 1, now])
+        self.history = self.history[-HISTORY:]
+      self.render([(t, c) for t, c, _ in self.history])
+    self.root.after(POLL_MS, self.poll)
+
+
+if __name__ == "__main__":
+  Overlay()
