@@ -53,6 +53,8 @@ vim --version | grep channel
 
 It must show `+channel`.
 
+The remote session can now be exited. We will reconnect to it when we want to use it (as shown below)
+
 ## 3. Use it
 
 Open **two local terminals**.
