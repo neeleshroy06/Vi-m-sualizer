@@ -1,4 +1,6 @@
+import argparse
 import os
+import socket
 import sys
 import tempfile
 import time
@@ -23,7 +25,10 @@ BAR_BG = "#2a2a2a"
 
 class Overlay:
 
-  def __init__(self):
+  def __init__(self, listen_port=None):
+    self.listen_port = listen_port
+    self.server = None
+    self.clients = {}
     self.root = tk.Tk()
     self.root.overrideredirect(True)
     self.root.attributes("-topmost", True)
@@ -34,7 +39,9 @@ class Overlay:
     self.bar = tk.Frame(self.root, bg=BAR_BG)
     self.bar.pack(fill="x")
     self.title = tk.Label(
-        self.bar, text="Vim Visualizer", fg=DIM, bg=BAR_BG,
+        self.bar,
+        text=(f"Vim Visualizer  ·  port {listen_port}" if listen_port else "Vim Visualizer"),
+        fg=DIM, bg=BAR_BG,
         font=(FONT, 9), padx=8,
     )
     self.title.pack(side="left")
@@ -52,7 +59,9 @@ class Overlay:
     self.frame.pack(fill="both")
 
     self.history = []  # each item: [text, count, last_time]
-    self.last_id = self.read()[0]  # ignore stale content at startup
+    self.last_id = None if listen_port else self.read()[0]  # ignore stale file content
+    if listen_port:
+      self.start_server(listen_port)
     self.render([("Vim Visualizer Ready", 1)])
 
     # drag from anywhere except the close button
@@ -65,11 +74,50 @@ class Overlay:
     self.root.mainloop()
 
   def close(self):
-    try:
-      os.remove(FILE)
-    except OSError:
-      pass
+    if self.server:
+      for client in self.clients:
+        client.close()
+      self.server.close()
+    if not self.listen_port:
+      try:
+        os.remove(FILE)
+      except OSError:
+        pass
     self.root.destroy()
+
+  def start_server(self, port):
+    self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    self.server.bind(("127.0.0.1", port))
+    self.server.listen()
+    self.server.setblocking(False)
+
+  def poll_server(self):
+    while True:
+      try:
+        client, _ = self.server.accept()
+        client.setblocking(False)
+        self.clients[client] = b""
+      except BlockingIOError:
+        break
+
+    for client in list(self.clients):
+      try:
+        data = client.recv(4096)
+      except BlockingIOError:
+        continue
+      if not data:
+        client.close()
+        del self.clients[client]
+        continue
+      self.clients[client] += data
+      while b"\n" in self.clients[client]:
+        raw, self.clients[client] = self.clients[client].split(b"\n", 1)
+        try:
+          cmd_id, text = raw.decode("utf-8").split("|", 1)
+        except ValueError:
+          continue
+        self.record(cmd_id, text)
 
   def start_move(self, e):
     self.dx = e.x_root - self.root.winfo_x()
@@ -106,24 +154,34 @@ class Overlay:
       lbl.bind("<Button-1>", self.start_move)
       lbl.bind("<B1-Motion>", self.do_move)
 
+  def record(self, cmd_id, text):
+    if not cmd_id or cmd_id == self.last_id:
+      return
+    self.last_id = cmd_id
+    now = time.time()
+    if (
+        self.history
+        and self.history[-1][0] == text
+        and now - self.history[-1][2] < REPEAT_WINDOW
+    ):
+      self.history[-1][1] += 1
+      self.history[-1][2] = now
+    else:
+      self.history.append([text, 1, now])
+      self.history = self.history[-HISTORY:]
+    self.render([(t, c) for t, c, _ in self.history])
+
   def poll(self):
-    cmd_id, text = self.read()
-    if cmd_id and cmd_id != self.last_id:
-      self.last_id = cmd_id
-      now = time.time()
-      if (
-          self.history
-          and self.history[-1][0] == text
-          and now - self.history[-1][2] < REPEAT_WINDOW
-      ):
-        self.history[-1][1] += 1
-        self.history[-1][2] = now
-      else:
-        self.history.append([text, 1, now])
-        self.history = self.history[-HISTORY:]
-      self.render([(t, c) for t, c, _ in self.history])
+    if self.server:
+      self.poll_server()
+    else:
+      cmd_id, text = self.read()
+      self.record(cmd_id, text)
     self.root.after(POLL_MS, self.poll)
 
 
 if __name__ == "__main__":
-  Overlay()
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--listen", type=int, metavar="PORT")
+  args = parser.parse_args()
+  Overlay(args.listen)

@@ -17,7 +17,15 @@ if !exists('g:vs_file')
   endif
 endif
 
+" For remote Vim, set these before sourcing this file:
+" let g:vs_transport = 'tcp'
+" let g:vs_port = 8765
+if !exists('g:vs_transport') | let g:vs_transport = 'file' | endif
+if !exists('g:vs_host') | let g:vs_host = '127.0.0.1' | endif
+if !exists('g:vs_port') | let g:vs_port = 8765 | endif
+
 let s:buf = ''
+let s:tcp_channel = 0
 
 " ---------- capture ----------
 function! Vs_log(k) abort
@@ -197,17 +205,35 @@ function! s:Describe(raw) abort
 endfunction
 
 " ---------- flush when Vim is idle (command complete) ----------
+function! s:SendTcp(message) abort
+  if !exists('*ch_open') | return 0 | endif
+  try
+    if type(s:tcp_channel) != v:t_channel || ch_status(s:tcp_channel) !=# 'open'
+      let s:tcp_channel = ch_open(g:vs_host . ':' . g:vs_port,
+        \ {'mode': 'raw', 'waittime': 200})
+    endif
+    if type(s:tcp_channel) == v:t_channel && ch_status(s:tcp_channel) ==# 'open'
+      call ch_sendraw(s:tcp_channel, a:message . "\n")
+      return 1
+    endif
+  catch
+    let s:tcp_channel = 0
+  endtry
+  return 0
+endfunction
+
 function! s:Flush() abort
   if s:buf ==# '' | return | endif
   let id = trim(reltimestr(reltime()))
+  let message = id . '|' . s:Describe(s:buf)
   try
-    " C:\\Temp is not created by Windows by default.  Make the configured
-    " parent directory before writing, while still respecting g:vs_file.
-    let l:dir = fnamemodify(g:vs_file, ':h')
-    if !isdirectory(l:dir)
-      call mkdir(l:dir, 'p')
+    if g:vs_transport ==# 'tcp' && s:SendTcp(message)
+      let s:buf = ''
+      return
     endif
-    call writefile([id . '|' . s:Describe(s:buf)], g:vs_file)
+    let l:dir = fnamemodify(g:vs_file, ':h')
+    if !isdirectory(l:dir) | call mkdir(l:dir, 'p') | endif
+    call writefile([message], g:vs_file)
   catch
   endtry
   let s:buf = ''
