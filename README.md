@@ -1,14 +1,16 @@
-# Vim command visualizer
+# Vi-m-sualizer
 
 Shows remote Vim commands in a window on your computer. No X11 or remote
 Python is needed.
+
+*Because every Vim command deserves a dramatic entrance.*
 
 ## 1. Install locally
 
 On your own computer, clone the project:
 
 ```bash
-git clone <REPOSITORY-URL> ~/vimshow
+git clone <REPOSITORY-URL> ~/vi-m-sualizer
 ```
 
 You need Python 3 with Tk. Check it with:
@@ -24,7 +26,7 @@ On Windows, use `python` instead of `python3` and clone wherever you prefer.
 SSH to the server and clone the same project:
 
 ```bash
-git clone <REPOSITORY-URL> ~/vimshow
+git clone <REPOSITORY-URL> ~/vi-m-sualizer
 ```
 
 Create or edit your remote Vim config:
@@ -38,7 +40,7 @@ Add these lines:
 ```vim
 let g:vs_transport = 'tcp'
 let g:vs_port = 8765
-execute 'source ' . fnameescape(expand('~/vimshow/vimshow.vim'))
+execute 'source ' . fnameescape(expand('~/vi-m-sualizer/vimshow.vim'))
 ```
 
 Save with `Ctrl+O`, Enter, then `Ctrl+X`.
@@ -55,10 +57,10 @@ It must show `+channel`.
 
 Open **two local terminals**.
 
-In terminal 1, start the visualizer:
+In terminal 1, start Vi-m-sualizer:
 
 ```bash
-cd ~/vimshow
+cd ~/vi-m-sualizer
 python3 visualizer.py --listen 8765
 ```
 
@@ -74,7 +76,7 @@ Then run Vim on the remote server:
 vim
 ```
 
-Press `j` or `dd`. The local visualizer should update.
+Press `j` or `dd`. Vi-m-sualizer should update.
 
 ## Optional shortcut: keep the normal SSH command
 
@@ -93,7 +95,7 @@ Now students can use their usual command:
 ssh username@ieng6.ucsd.edu
 ```
 
-They still start the visualizer in the first local terminal.
+They still start Vi-m-sualizer in the first local terminal.
 
 ## Optional shortcut: Bash aliases
 
@@ -102,7 +104,7 @@ Use this instead of the SSH-config shortcut above.
 On macOS, Linux, or WSL, add these aliases to the **local** `~/.bashrc`:
 
 ```bash
-alias vimshow='python3 ~/vimshow/visualizer.py --listen 8765'
+alias vi-m-sualizer='python3 ~/vi-m-sualizer/visualizer.py --listen 8765'
 alias ieng6='ssh -o ExitOnForwardFailure=yes -R 127.0.0.1:8765:127.0.0.1:8765 username@ieng6.ucsd.edu'
 ```
 
@@ -112,6 +114,6 @@ Reload Bash:
 source ~/.bashrc
 ```
 
-Then use `vimshow` in terminal 1 and `ieng6` in terminal 2. Replace
+Then use `vi-m-sualizer` in terminal 1 and `ieng6` in terminal 2. Replace
 `username` with your username. Windows PowerShell does not use `.bashrc`; use
 the SSH-config option above instead.

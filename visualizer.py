@@ -40,7 +40,7 @@ class Overlay:
     self.bar.pack(fill="x")
     self.title = tk.Label(
         self.bar,
-        text=(f"Vim Visualizer  ·  port {listen_port}" if listen_port else "Vim Visualizer"),
+        text=(f"Vi-m-sualizer  ·  port {listen_port}" if listen_port else "Vi-m-sualizer"),
         fg=DIM, bg=BAR_BG,
         font=(FONT, 9), padx=8,
     )
@@ -62,7 +62,7 @@ class Overlay:
     self.last_id = None if listen_port else self.read()[0]  # ignore stale file content
     if listen_port:
       self.start_server(listen_port)
-    self.render([("Vim Visualizer Ready", 1)])
+    self.render([("Vi-m-sualizer Ready", 1)])
 
     # drag from anywhere except the close button
     for w in (self.root, self.bar, self.title, self.frame):

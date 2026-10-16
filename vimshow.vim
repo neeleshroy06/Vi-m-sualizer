@@ -1,4 +1,4 @@
-" vimshow.vim - logs completed NORMAL-mode commands (with English description)
+" Vi-m-sualizer - logs completed NORMAL-mode commands (with English description)
 " to a file that visualizer.py displays. Insert-mode typing is never logged.
 let s:cpo_save = &cpo
 set cpo&vim
@@ -95,7 +95,7 @@ function! Vs_cabort() abort
   return "\<C-c>"
 endfunction
 
-augroup VimShow
+augroup ViMSualizer
   autocmd!
   autocmd CmdlineEnter * let s:aborted = 0
   autocmd CmdlineLeave * call s:Cmdline()
