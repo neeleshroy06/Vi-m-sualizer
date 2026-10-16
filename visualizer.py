@@ -191,12 +191,13 @@ class Overlay:
     # newest on top, big; older ones below, dim
     for i, (text, count) in enumerate(reversed(items)):
       label = text + (f"  x{count}" if count > 1 else "")
+      is_current = i == 0
       lbl = tk.Label(
           self.frame,
           text=label,
-          fg=self.text_color if i == 0 else DIM,
+          fg=self.text_color,
           bg=self.background_color,
-          font=(FONT, self.text_size if i == 0 else max(8, self.text_size - 4), "bold" if i == 0 else "normal"),
+          font=(FONT, self.text_size + 2 if is_current else self.text_size, "bold" if is_current else "normal"),
           anchor="w",
           justify="left",
       )
