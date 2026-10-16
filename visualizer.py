@@ -5,6 +5,7 @@ import sys
 import tempfile
 import time
 import tkinter as tk
+from tkinter import colorchooser
 
 # Must match g:vs_file in vimshow.vim.  VIMSHOW_FILE is useful for custom
 # locations (for example, a shared mount).
@@ -34,6 +35,9 @@ class Overlay:
     self.root.attributes("-topmost", True)
     self.root.configure(bg=BG)
     self.root.geometry("+100+100")
+    self.text_color = FG
+    self.background_color = BG
+    self.text_size = 16
 
     # header: drag handle + close button
     self.bar = tk.Frame(self.root, bg=BAR_BG)
@@ -53,6 +57,14 @@ class Overlay:
     self.close_btn.bind("<Enter>", lambda e: self.close_btn.config(bg="#c42b1c", fg="white"))
     self.close_btn.bind("<Leave>", lambda e: self.close_btn.config(bg=BAR_BG, fg="#cccccc"))
     self.close_btn.pack(side="right")
+    self.edit_btn = tk.Label(
+        self.bar, text="Edit", fg="#cccccc", bg=BAR_BG, padx=8,
+        font=(FONT, 9), cursor="hand2",
+    )
+    self.edit_btn.bind("<Button-1>", lambda e: self.open_settings())
+    self.edit_btn.bind("<Enter>", lambda e: self.edit_btn.config(fg="white"))
+    self.edit_btn.bind("<Leave>", lambda e: self.edit_btn.config(fg="#cccccc"))
+    self.edit_btn.pack(side="right")
 
     # commands area
     self.frame = tk.Frame(self.root, bg=BG, padx=15, pady=10)
@@ -84,6 +96,44 @@ class Overlay:
       except OSError:
         pass
     self.root.destroy()
+
+  def open_settings(self):
+    if getattr(self, "settings", None) and self.settings.winfo_exists():
+      self.settings.lift()
+      return
+
+    self.settings = tk.Toplevel(self.root)
+    self.settings.title("Visualizer appearance")
+    self.settings.transient(self.root)
+    self.settings.resizable(False, False)
+    panel = tk.Frame(self.settings, padx=12, pady=12)
+    panel.pack(fill="both", expand=True)
+
+    tk.Label(panel, text="Text color").grid(row=0, column=0, sticky="w", pady=4)
+    tk.Button(panel, text="Choose…", command=self.choose_text_color).grid(row=0, column=1, padx=8)
+    tk.Label(panel, text="Background color").grid(row=1, column=0, sticky="w", pady=4)
+    tk.Button(panel, text="Choose…", command=self.choose_background_color).grid(row=1, column=1, padx=8)
+    tk.Label(panel, text="Text size").grid(row=2, column=0, sticky="w", pady=4)
+    self.size_var = tk.IntVar(value=self.text_size)
+    tk.Spinbox(panel, from_=8, to=48, textvariable=self.size_var, width=5).grid(row=2, column=1, sticky="w", padx=8)
+    tk.Button(panel, text="Apply", command=self.apply_settings).grid(row=3, column=0, columnspan=2, pady=(10, 0))
+
+  def choose_text_color(self):
+    _, color = colorchooser.askcolor(self.text_color, parent=self.settings, title="Text color")
+    if color:
+      self.text_color = color
+
+  def choose_background_color(self):
+    _, color = colorchooser.askcolor(self.background_color, parent=self.settings, title="Background color")
+    if color:
+      self.background_color = color
+
+  def apply_settings(self):
+    self.text_size = max(8, min(48, self.size_var.get()))
+    self.root.configure(bg=self.background_color)
+    self.frame.configure(bg=self.background_color)
+    self.render([(t, c) for t, c, _ in self.history] or [("Vi-m-sualizer Ready", 1)])
+    self.settings.destroy()
 
   def start_server(self, port):
     self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -144,9 +194,9 @@ class Overlay:
       lbl = tk.Label(
           self.frame,
           text=label,
-          fg=FG if i == 0 else DIM,
-          bg=BG,
-          font=(FONT, 16 if i == 0 else 12, "bold" if i == 0 else "normal"),
+          fg=self.text_color if i == 0 else DIM,
+          bg=self.background_color,
+          font=(FONT, self.text_size if i == 0 else max(8, self.text_size - 4), "bold" if i == 0 else "normal"),
           anchor="w",
           justify="left",
       )

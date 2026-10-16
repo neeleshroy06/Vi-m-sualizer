@@ -78,6 +78,11 @@ vim
 
 Press `j` or `dd`. Vi-m-sualizer should update.
 
+### Change the appearance
+
+Click **Edit** in the window header to change the command text color,
+background color, or text size. Click **Apply** to update the display.
+
 ## Optional shortcut: keep the normal SSH command
 
 On your **local** computer, add this to `~/.ssh/config` (create the file if
